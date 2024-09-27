@@ -16,6 +16,7 @@ import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.net.URI;
+import java.util.Arrays;
 import java.util.List;
 
 @RestController
@@ -33,12 +34,13 @@ public class BoardController {
     public ResponseEntity<?> post(@RequestPart("boardDto") BoardDto boardDto,
             @RequestPart(value = "uploadFiles", required = false) MultipartFile[] uploadFiles,
             @AuthenticationPrincipal CustomUserDetails customUserDetails,
-                                  @PageableDefault(page = 0, size = 10) Pageable pageable) {
+            @PageableDefault(page = 0, size = 10) Pageable pageable) {
         ResponseDto<BoardDto> responseDto = new ResponseDto<>();
 
         try {
             log.info("post boardDto: {}", boardDto);
-            Page<BoardDto> boardDtoList = boardService.post(boardDto, uploadFiles, customUserDetails.getMember(), pageable);
+            Page<BoardDto> boardDtoList = boardService.post(boardDto, uploadFiles,
+                    customUserDetails.getMember(), pageable);
 
             log.info("post boardDtoList: {}", boardDtoList);
             responseDto.setPageItems(boardDtoList);
@@ -81,20 +83,20 @@ public class BoardController {
     }
 
     @GetMapping("/{id}")
-    public ResponseEntity<?> findById(@PathVariable("id") long id){
-        ResponseDto<BoardDto> responseDto = new ResponseDto<BoardDto>();
+    public ResponseEntity<?> findById(@PathVariable("id") Long id) {
+        ResponseDto<BoardDto> responseDto = new ResponseDto<>();
 
-        try{
-            BoardDto boardDetail = boardService.findById(id);
+        try {
+            log.info("findById id: {}", id);
+            BoardDto boardDto = boardService.findById(id);
 
-            responseDto.setItem(boardDetail);
+            responseDto.setItem(boardDto);
             responseDto.setStatusCode(HttpStatus.OK.value());
             responseDto.setStatusMessage("ok");
 
             return ResponseEntity.ok(responseDto);
-        }catch(Exception e){
-
-            log.error("getDetailBoard error: {}", e.getMessage());
+        } catch (Exception e) {
+            log.error("findById error: {}", e.getMessage());
             responseDto.setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
             responseDto.setStatusMessage(e.getMessage());
             return ResponseEntity.internalServerError().body(responseDto);
@@ -102,18 +104,57 @@ public class BoardController {
     }
 
     @DeleteMapping("/{id}")
-    public ResponseEntity<?> deleteById(@PathVariable("id") long id){
+    public ResponseEntity<?> deleteById(@PathVariable("id") Long id) {
         ResponseDto<BoardDto> responseDto = new ResponseDto<>();
-        try{
-            log.info("deleteById : {}", id);
+
+        try {
+            log.info("deleteById id: {}", id);
+
             boardService.deleteById(id);
 
             responseDto.setStatusCode(HttpStatus.NO_CONTENT.value());
             responseDto.setStatusMessage("no content");
-            return ResponseEntity.ok(responseDto);
-        }catch(Exception e){
 
+            return ResponseEntity.ok(responseDto);
+        } catch (Exception e) {
             log.error("deleteById error: {}", e.getMessage());
+            responseDto.setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
+            responseDto.setStatusMessage(e.getMessage());
+            return ResponseEntity.internalServerError().body(responseDto);
+        }
+    }
+
+    @PatchMapping
+    public ResponseEntity<?> modify(@RequestPart("boardDto") BoardDto boardDto,
+           @RequestPart(value = "uploadFiles", required = false) MultipartFile[] uploadFiles,
+           @RequestPart(value = "changeFiles", required = false) MultipartFile[] changeFiles,
+           @RequestPart(value = "originFiles", required = false) String originFiles,
+           @AuthenticationPrincipal CustomUserDetails customUserDetails) {
+        ResponseDto<BoardDto> responseDto = new ResponseDto<>();
+
+        try {
+            log.info("modify boardDto: {}", boardDto);
+
+            if(uploadFiles != null && uploadFiles.length > 0)
+                Arrays.stream(uploadFiles).forEach(file ->
+                        log.info("modify uploadFile: {}", file.getOriginalFilename()));
+
+            if(changeFiles != null && changeFiles.length > 0)
+                Arrays.stream(changeFiles).forEach(file ->
+                        log.info("modify changeFile: {}", file.getOriginalFilename()));
+
+            log.info("modify originFiles: {}", originFiles);
+
+            BoardDto modifiedBoardDto = boardService.modify(boardDto, uploadFiles,
+                    changeFiles, originFiles, customUserDetails.getMember());
+
+            responseDto.setItem(modifiedBoardDto);
+            responseDto.setStatusCode(HttpStatus.OK.value());
+            responseDto.setStatusMessage("ok");
+
+            return ResponseEntity.ok(responseDto);
+        } catch(Exception e) {
+            log.error("modify error: {}", e.getMessage());
             responseDto.setStatusCode(HttpStatus.INTERNAL_SERVER_ERROR.value());
             responseDto.setStatusMessage(e.getMessage());
             return ResponseEntity.internalServerError().body(responseDto);
